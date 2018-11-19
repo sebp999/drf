@@ -1,9 +1,4 @@
 from django.test import TestCase
-from django.urls import resolve
-from django.http import HttpRequest
-from django.utils.html import escape
-from django.core.exceptions import ValidationError
-from django.template.loader import render_to_string
 from .models import Bucketlist
 from rest_framework.test import APIClient
 from django.urls import reverse
@@ -38,6 +33,7 @@ class ViewTestCase(TestCase):
         """Test the api has bucket creation capability."""
 
         self.assertEqual(self.response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Bucketlist.objects.count(), 1)
 
     def test_api_can_get_bucketlist(self):
         bucketlist = Bucketlist.objects.get()
