@@ -1,5 +1,6 @@
 from django.test import TestCase
 from .models import Bucketlist
+from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 from django.urls import reverse
 from rest_framework import status
@@ -8,12 +9,14 @@ from rest_framework import status
 
 class ModelTestCase(TestCase):
     def setUp(self):
+        user = User.objects.create(username="nerd")
         self.bucketlist_name="Write world class code"
-        self.bucketlist = Bucketlist(name=self.bucketlist_name)
+        self.bucketlist = Bucketlist(name=self.bucketlist_name, owner=user)
+        print(self.bucketlist)
 
     def test_model_can_create_bucketlist(self):
         old_count = Bucketlist.objects.count()
-        Bucketlist.objects.create()
+        self.bucketlist.save()
         new_count = Bucketlist.objects.count()
         self.assertNotEqual(old_count, new_count)
 
@@ -22,12 +25,41 @@ class ViewTestCase(TestCase):
 
     def setUp(self):
         """Define the test client and other test variables."""
+        user = User.objects.create(username="nerd")
+
+        # Initialize client and force it to use authentication
         self.client = APIClient()
-        self.bucketlist_data = {'name': 'Go to Ibiza'}
+        self.client.force_authenticate(user=user)
+
+        # Since user model instance is not serializable, use its Id/PK
+        self.bucketlist_data = {'name': 'Go to Ibiza', 'owner': user.id}
+        self.response = self.client.post(
+            reverse('create'),
+            data=self.bucketlist_data,
+            format="json")
+
+    def test_api_can_create_a_bucketlist(self):
+        """Test the api has bucket creation capability."""
+
+        self.assertEqual(self.response.status_code, status.HTTP_201_CREATED)
+
+
+
+
+    def setUp(self):
+        """Define the test client and other test variables."""
+        user = User.objects.create(username="nerd")
+        self.client = APIClient()
+
+        self.client.force_authenticate(user=user)
+        self.bucketlist_data = {'name': 'Go to Ibiza', 'owner_id': user.id}
+
         self.response = self.client.post(
             reverse('create'),
             self.bucketlist_data,
             format="json")
+
+        # print(self.response)
 
     def test_api_can_create_a_bucketlist(self):
         """Test the api has bucket creation capability."""
@@ -61,3 +93,11 @@ class ViewTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(Bucketlist.objects.count(), 0)
 
+    def test_authorization_is_enforced(self):
+        """Test that the api has user authorization."""
+        new_client = APIClient()
+        res = new_client.get('/bucketlists/', kwargs={'pk': 3}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+
+#
